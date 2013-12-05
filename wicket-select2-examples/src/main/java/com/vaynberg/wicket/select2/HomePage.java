@@ -17,11 +17,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.markup.html.AjaxFallbackLink;
 import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Form;
 import org.apache.wicket.model.PropertyModel;
-import org.apache.wicket.request.mapper.parameter.PageParameters;
 
 /**
  * Example page.
@@ -45,7 +46,7 @@ public class HomePage extends WebPage {
 	Form<?> form = new Form<Void>("single");
 	add(form);
 
-	Select2Choice<Country> country = new Select2Choice<Country>("country", new PropertyModel<Country>(this,
+	final Select2Choice<Country> country = new Select2Choice<Country>("country", new PropertyModel<Country>(this,
 		"country"), new CountriesProvider());
 	country.getSettings().setMinimumInputLength(1);
 	form.add(country);
@@ -54,13 +55,20 @@ public class HomePage extends WebPage {
 
 	add(new Label("countries", new PropertyModel<Object>(this, "countries")));
 
-	Form<?> multi = new Form<Void>("multi");
+	final Form<?> multi = new Form<Void>("multi");
 	add(multi);
 
-	Select2MultiChoice<Country> countries = new Select2MultiChoice<Country>("countries",
+	final Select2MultiChoice<Country> countries = new Select2MultiChoice<Country>("countries",
 		new PropertyModel<Collection<Country>>(this, "countries"), new CountriesProvider());
 	countries.getSettings().setMinimumInputLength(1);
 	multi.add(countries);
+	
+	add(new AjaxFallbackLink("link") {
+            public void onClick(AjaxRequestTarget target) {
+                target.addComponent(country);
+                target.addComponent(countries);
+            }
+        });
 
     }
 
@@ -108,6 +116,8 @@ public class HomePage extends WebPage {
      * 
      */
     public class CountriesProvider extends TextChoiceProvider<Country> {
+
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	protected String getDisplayText(Country choice) {

@@ -33,6 +33,8 @@ import com.vaynberg.wicket.select2.json.JsonBuilder;
  */
 public class Select2MultiChoice<T> extends AbstractSelect2Choice<T, Collection<T>> {
 
+    private static final long serialVersionUID = 1L;
+
     public Select2MultiChoice(String id, IModel<Collection<T>> model, ChoiceProvider<T> provider) {
 	super(id, model, provider);
     }
@@ -48,7 +50,7 @@ public class Select2MultiChoice<T> extends AbstractSelect2Choice<T, Collection<T
     @Override
     protected void convertInput() {
 
-	String input = getWebRequest().getRequestParameters().getParameterValue(getInputName()).toString();
+	String input = getWebRequest().getParameter(getInputName()).toString();
 
 	final Collection<T> choices;
 	if (Strings.isEmpty(input)) {
@@ -111,7 +113,7 @@ public class Select2MultiChoice<T> extends AbstractSelect2Choice<T, Collection<T
 		throw new RuntimeException("Error converting model objec to Json", e);
 	    }
 
-	    response.renderOnDomReadyJavaScript(JQuery.execute("$('#%s').select2('data', %s);", getMarkupId(),
+	    response.renderOnDomReadyJavascript(JQuery.execute("$('#%s').select2('data', %s);", getMarkupId(),
 		    selection.toJson()));
 	}
     }

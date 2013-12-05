@@ -16,16 +16,15 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 
 import org.apache.wicket.IResourceListener;
+import org.apache.wicket.Request;
+import org.apache.wicket.RequestCycle;
 import org.apache.wicket.ajax.AjaxRequestTarget;
-import org.apache.wicket.event.IEvent;
+import org.apache.wicket.markup.html.IHeaderContributor;
 import org.apache.wicket.markup.html.IHeaderResponse;
 import org.apache.wicket.markup.html.form.HiddenField;
 import org.apache.wicket.model.IModel;
-import org.apache.wicket.request.IRequestParameters;
-import org.apache.wicket.request.Request;
-import org.apache.wicket.request.cycle.RequestCycle;
-import org.apache.wicket.request.http.WebRequest;
-import org.apache.wicket.request.http.WebResponse;
+import org.apache.wicket.protocol.http.WebResponse;
+import org.apache.wicket.util.string.StringValue;
 import org.json.JSONException;
 import org.json.JSONWriter;
 
@@ -39,7 +38,12 @@ import org.json.JSONWriter;
  * @param <M>
  *            type of model object
  */
-abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IResourceListener {
+abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IResourceListener, IHeaderContributor {
+
+    private static final String WEB_REQUEST_PARAM_AJAX = "wicket-ajax"; //WebRequest.PARAM_AJAX 
+    private static final String WEB_REQUEST_PARAM_AJAX_BASE_URL = "wicket-ajax-baseurl"; //WebRequest.PARAM_AJAX_BASE_URL
+
+    private static final long serialVersionUID = 1L;
 
     private final Settings settings = new Settings();
 
@@ -97,8 +101,6 @@ abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IRe
 	super(id, model);
 	this.provider = provider;
 
-	add(new Select2ResourcesBehavior());
-
 	setOutputMarkupId(true);
     }
 
@@ -140,11 +142,19 @@ abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IRe
 
     @Override
     public void renderHead(IHeaderResponse response) {
-	super.renderHead(response);
-
+	AjaxRequestTarget target = AjaxRequestTarget.get(); 
+        if (target != null) {
+            if (target.getComponents().contains(this)) {
+        	// if this component is being repainted by ajax, directly, we must destroy Select2 so it removes
+        	// its elements from DOM
+        	response.renderJavascript(JQuery.execute("$('#%s').select2('destroy');", getJquerySafeMarkupId()), null);
+            }
+        }
+	
 	// initialize select2
+	new Select2ResourcesBehavior().renderHead(response);
 
-	response.renderOnDomReadyJavaScript(JQuery.execute("$('#%s').select2(%s);", getJquerySafeMarkupId(),
+	response.renderOnDomReadyJavascript(JQuery.execute("$('#%s').select2(%s);", getJquerySafeMarkupId(),
             settings.toJson()));
 
 	// select current value
@@ -171,7 +181,7 @@ abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IRe
 
 	ajax.setData(String
 		.format("function(term, page) { return { term: term, page:page, '%s':true, '%s':[window.location.protocol, '//', window.location.host, window.location.pathname].join('')}; }",
-			WebRequest.PARAM_AJAX, WebRequest.PARAM_AJAX_BASE_URL));
+			WEB_REQUEST_PARAM_AJAX, WEB_REQUEST_PARAM_AJAX_BASE_URL));
 
 	ajax.setResults("function(data, page) { return data; }");
     }
@@ -180,27 +190,9 @@ abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IRe
     protected void onConfigure() {
 	super.onConfigure();
 
-	getSettings().getAjax().setUrl(urlFor(IResourceListener.INTERFACE, null));
+	getSettings().getAjax().setUrl(urlFor(IResourceListener.INTERFACE));
     }
-
-    @Override
-    public void onEvent(IEvent<?> event) {
-	super.onEvent(event);
-
-	if (event.getPayload() instanceof AjaxRequestTarget) {
-
-	    AjaxRequestTarget target = (AjaxRequestTarget) event.getPayload();
-
-	    if (target.getComponents().contains(this)) {
-
-		// if this component is being repainted by ajax, directly, we must destroy Select2 so it removes
-		// its elements from DOM
-
-		target.prependJavaScript(JQuery.execute("$('#%s').select2('destroy');", getJquerySafeMarkupId()));
-	    }
-	}
-    }
-
+    
     @Override
     public void onResourceRequested() {
 
@@ -208,13 +200,12 @@ abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IRe
 
 	RequestCycle rc = RequestCycle.get();
 	Request request = rc.getRequest();
-	IRequestParameters params = request.getRequestParameters();
-
+	
 	// retrieve choices matching the search term
 
-	String term = params.getParameterValue("term").toOptionalString();
+	String term = StringValue.valueOf(request.getParameter("term")).toOptionalString();
 
-	int page = params.getParameterValue("page").toInt(1);
+	int page = StringValue.valueOf(request.getParameter("page")).toInt(1);
 	// select2 uses 1-based paging, but in wicket world we are used to
 	// 0-based
 	page -= 1;
@@ -227,7 +218,7 @@ abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IRe
 	WebResponse webResponse = (WebResponse) rc.getResponse();
 	webResponse.setContentType("application/json");
 
-	OutputStreamWriter out = new OutputStreamWriter(webResponse.getOutputStream(), getRequest().getCharset());
+	OutputStreamWriter out = new OutputStreamWriter(webResponse.getOutputStream(), CharsetExtractor.extractCharset(request));
 	JSONWriter json = new JSONWriter(out);
 
 	try {
@@ -256,5 +247,4 @@ abstract class AbstractSelect2Choice<T, M> extends HiddenField<M> implements IRe
 	provider.detach();
 	super.onDetach();
     }
-
 }

@@ -14,7 +14,8 @@ package com.vaynberg.wicket.select2;
 
 import org.apache.wicket.Application;
 import org.apache.wicket.Component;
-import org.apache.wicket.behavior.Behavior;
+import org.apache.wicket.behavior.IBehavior;
+import org.apache.wicket.markup.html.IHeaderContributor;
 import org.apache.wicket.markup.html.IHeaderResponse;
 
 /**
@@ -25,30 +26,32 @@ import org.apache.wicket.markup.html.IHeaderResponse;
  * @author igor
  * 
  */
-public class Select2ResourcesBehavior extends Behavior {
+public class Select2ResourcesBehavior implements IHeaderContributor {
+
+    private static final long serialVersionUID = 1L;
 
     @Override
-    public void renderHead(Component component, IHeaderResponse response) {
+    public void renderHead(IHeaderResponse response) {
 
 	final ApplicationSettings settings = ApplicationSettings.get();
 
 	if (settings.isIncludeJquery()) {
-	    if (Application.get().usesDeploymentConfig()) {
-		response.renderJavaScriptReference(settings.getJqueryMinifiedReference());
+	    if (Application.DEVELOPMENT.equals(Application.get().getConfigurationType())) {
+		response.renderJavascriptReference(settings.getJqueryMinifiedReference());
 	    } else {
-		response.renderJavaScriptReference(settings.getJqueryReference());
+		response.renderJavascriptReference(settings.getJqueryReference());
 	    }
 	}
 
 	if (settings.isIncludeMouseWheel()) {
-	    response.renderJavaScriptReference(settings.getMouseWheelReference());
+	    response.renderJavascriptReference(settings.getMouseWheelReference());
 	}
 
 	if (settings.isIncludeJavascript()) {
-	    if (Application.get().usesDeploymentConfig()) {
-		response.renderJavaScriptReference(settings.getJavaScriptMinifiedReference());
+	    if (Application.DEVELOPMENT.equals(Application.get().getConfigurationType())) {
+		response.renderJavascriptReference(settings.getJavaScriptMinifiedReference());
 	    } else {
-		response.renderJavaScriptReference(settings.getJavaScriptReference());
+		response.renderJavascriptReference(settings.getJavaScriptReference());
 	    }
 	}
 
